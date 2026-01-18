@@ -1,0 +1,247 @@
+<!-- sims4-checklist/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sims 4 Checklist – Full Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --primary: #4f46e5;
+      --accent: #22c55e;
+      --overall: #0ea5e9;
+      --border: #e5e7eb;
+    }
+
+    body.dark {
+      --bg: #0f172a;
+      --card: #020617;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --primary: #22c55e;
+      --accent: #22c55e;
+      --overall: #16a34a;
+      --border: #1f2933;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: auto;
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    h1, h2 { text-align: center; }
+
+    select, button {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+    }
+
+    button {
+      background: var(--primary);
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+
+    .toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .progress-box { margin-bottom: 20px; }
+
+    .progress-bar {
+      width: 100%;
+      height: 16px;
+      background: var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .overall .progress-fill { background: var(--overall); }
+
+    ul { list-style: none; padding: 0; }
+
+    li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    li.completed span { text-decoration: line-through; color: var(--muted); }
+
+    .tag {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--border);
+      margin-left: 8px;
+    }
+
+    .Expansion { background: #064e3b; color: #a7f3d0; }
+    .Game { background: #052e16; color: #bbf7d0; }
+    .Stuff { background: #3f3f1f; color: #fde68a; }
+    .Kit { background: #3b0764; color: #f5d0fe; }
+    .Base { background: #1f2933; color: #e5e7eb; }
+    .Trait { background: #065f46; color: #bbf7d0; }
+    .Aspiration { background: #065f9c; color: #bfdbfe; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Sims 4 Completion Tracker</h1>
+
+  <div class="row">
+    <button class="toggle" onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+    <button onclick="exportCSV()">📤 Export to Google Sheets</button>
+  </div>
+
+  <div class="progress-box overall">
+    <h2>Overall Progress</h2>
+    <div id="overallText">0%</div>
+    <div class="progress-bar"><div class="progress-fill" id="overallFill"></div></div>
+  </div>
+
+  <div class="row">
+    <select id="listSelect" onchange="renderTasks()"></select>
+    <select id="filterSelect" onchange="renderTasks()">
+      <option value="all">All</option>
+      <option value="Base">Base Game</option>
+      <option value="Expansion">Expansion Packs</option>
+      <option value="Game">Game Packs</option>
+      <option value="Stuff">Stuff Packs</option>
+      <option value="Kit">Kits</option>
+      <option value="Trait">Traits</option>
+      <option value="Aspiration">Aspirations</option>
+    </select>
+  </div>
+
+  <ul id="taskList"></ul>
+</div>
+
+<script>
+const listSelect = document.getElementById('listSelect');
+const filterSelect = document.getElementById('filterSelect');
+const taskList = document.getElementById('taskList');
+const overallFill = document.getElementById('overallFill');
+const overallText = document.getElementById('overallText');
+
+let data = JSON.parse(localStorage.getItem('checklists')) || {
+  "Packs": [
+    { text: "Base Game", type: "Base", done: false },
+    { text: "Get to Work", type: "Expansion", done: false },
+    { text: "Get Together", type: "Expansion", done: false }
+  ],
+  "Traits": [
+    { text: "Active", type: "Trait", done: false },
+    { text: "Creative", type: "Trait", done: false },
+    { text: "Genius", type: "Trait", done: false }
+  ],
+  "Aspirations": [
+    { text: "Bodybuilder", type: "Aspiration", done: false },
+    { text: "Master Chef", type: "Aspiration", done: false },
+    { text: "Joke Star", type: "Aspiration", done: false }
+  ]
+};
+
+function save() { localStorage.setItem('checklists', JSON.stringify(data)); }
+
+function loadLists() {
+  listSelect.innerHTML = '';
+  Object.keys(data).forEach(name => {
+    const o = document.createElement('option');
+    o.value = name;
+    o.textContent = name;
+    listSelect.appendChild(o);
+  });
+}
+
+function updateOverall() {
+  let total = 0, done = 0;
+  Object.values(data).forEach(list => { total += list.length; done += list.filter(i => i.done).length; });
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  overallText.textContent = `${pct}% (${done}/${total})`;
+  overallFill.style.width = pct + '%';
+}
+
+function renderTasks() {
+  taskList.innerHTML = '';
+  const current = data[listSelect.value];
+  const filter = filterSelect.value;
+  current.filter(item => filter === 'all' || item.type === filter).forEach(item => {
+    const li = document.createElement('li');
+    if (item.done) li.classList.add('completed');
+
+    const left = document.createElement('div');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = item.done;
+    cb.onchange = () => { item.done = cb.checked; save(); renderTasks(); };
+
+    const span = document.createElement('span'); span.textContent = item.text;
+    const tag = document.createElement('span'); tag.textContent = item.type; tag.className = `tag ${item.type}`;
+
+    left.appendChild(cb); left.appendChild(span); left.appendChild(tag);
+    li.appendChild(left); taskList.appendChild(li);
+  });
+  updateOverall();
+}
+
+function toggleDarkMode() {
+  document.body.classList.toggle('dark');
+  localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+}
+if (localStorage.getItem('darkMode') === 'true') { document.body.classList.add('dark'); }
+
+function exportCSV() {
+  let csv = 'Checklist,Item,Type,Done\n';
+  for (const [listName, items] of Object.entries(data)) {
+    items.forEach(item => { csv += `"${listName}","${item.text}","${item.type}",${item.done}\n`; });
+  }
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'sims4_checklists.csv');
+  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+
+loadLists(); listSelect.selectedIndex = 0; renderTasks();
+</script>
+</body>
+</html>
